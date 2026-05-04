@@ -1,0 +1,15 @@
+# OpenShift Route example — adjust host/TLS for your cluster.
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: demo-chat
+  namespace: demo-chat
+spec:
+  to:
+    kind: Service
+    name: demo-chat
+    weight: 100
+  port:
+    targetPort: http
+  tls:
+    termination: edge

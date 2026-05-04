@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Demo Chat</title>
+    <link rel="stylesheet" href="/theme.css" />
+  </head>
+  <body>
+    <div id="login-view" class="panel login-card">
+      <div class="login-brand">
+        <div class="login-logotype js-logo-slot" id="login-logo-slot" aria-hidden="true">
+          <svg class="brand-logo-svg login-brand-svg" viewBox="0 0 40 40" width="44" height="44" xmlns="http://www.w3.org/2000/svg">
+            <path fill="var(--primary)" fill-opacity="0.22" d="M4 14C4 9.03 8.03 5 13 5h10c4.97 0 9 4.03 9 9v5c0 4.97-4.03 9-9 9h-4.5l-5.2 6.2V28H13c-4.97 0-9-4.03-9-9v-5z"/>
+            <path fill="var(--primary)" d="M14 11c-3.31 0-6 2.69-6 6v7c0 3.31 2.69 6 6 6h2.8l4.5 5.4V30h2.7c3.31 0 6-2.69 6-6v-7c0-3.31-2.69-6-6-6H14z"/>
+            <circle class="login-logo-dot" cx="17" cy="21" r="1.8" />
+            <circle class="login-logo-dot" cx="22" cy="21" r="1.8" />
+            <circle class="login-logo-dot" cx="27" cy="21" r="1.8" />
+          </svg>
+        </div>
+        <h1 class="login-title js-app-title">Demo Chat</h1>
+      </div>
+      <p style="color: var(--muted); font-size: 0.9rem">Sign in with your credentials.</p>
+      <div class="field">
+        <label for="login-user">Username</label>
+        <input id="login-user" class="input" autocomplete="username" />
+      </div>
+      <div class="field">
+        <label for="login-pass">Password</label>
+        <input id="login-pass" type="password" class="input" autocomplete="current-password" />
+      </div>
+      <button type="button" class="btn btn-primary" id="login-btn">Sign in</button>
+      <div id="login-error" class="error-text hidden"></div>
+    </div>
+
+    <div id="app-view" class="layout hidden">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-header">
+            <div class="brand-logotype js-logo-slot" id="sidebar-logo-slot" aria-hidden="true">
+              <svg
+                class="brand-logo-svg"
+                viewBox="0 0 40 40"
+                width="40"
+                height="40"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  fill="currentColor"
+                  fill-opacity="0.28"
+                  d="M4 14C4 9.03 8.03 5 13 5h10c4.97 0 9 4.03 9 9v5c0 4.97-4.03 9-9 9h-4.5l-5.2 6.2V28H13c-4.97 0-9-4.03-9-9v-5z"
+                />
+                <path
+                  fill="currentColor"
+                  d="M14 11c-3.31 0-6 2.69-6 6v7c0 3.31 2.69 6 6 6h2.8l4.5 5.4V30h2.7c3.31 0 6-2.69 6-6v-7c0-3.31-2.69-6-6-6H14z"
+                />
+                <circle class="brand-logo-dot" cx="17" cy="21" r="1.8" />
+                <circle class="brand-logo-dot" cx="22" cy="21" r="1.8" />
+                <circle class="brand-logo-dot" cx="27" cy="21" r="1.8" />
+              </svg>
+            </div>
+            <div class="brand-titles">
+              <div class="brand-title js-app-title">Demo Chat</div>
+              <div class="brand-sub">team collaboration</div>
+            </div>
+          </div>
+        </div>
+        <nav class="nav" id="sidebar-nav">
+          <div class="nav-item active" data-view="chat">Channels</div>
+          <div class="nav-item hidden" data-view="admin" id="nav-admin">Admin</div>
+          <div class="nav-item" data-view="account">Account</div>
+        </nav>
+        <div class="sidebar-footer">
+          REST API: /api/v1<br />
+          OpenAPI: <a href="/docs" target="_blank" rel="noopener" style="color: var(--sidebar-muted)">/docs</a>
+        </div>
+      </aside>
+
+      <div class="main">
+        <header class="topbar">
+          <h1 class="page-title" id="page-heading">Channels</h1>
+          <div class="topbar-right">
+            <span class="user-label"><span id="whoami"></span></span>
+            <button type="button" class="btn btn-ghost" id="logout-btn">Sign out</button>
+          </div>
+        </header>
+
+        <div class="content">
+          <section id="view-chat" class="view">
+            <div class="chat-layout">
+              <div class="channel-list" id="channel-list"></div>
+              <aside class="channel-connected-panel" id="channel-connected-panel" aria-label="Users connected to this channel">
+                <div class="channel-connected-heading" id="channel-connected-heading">Connected now</div>
+                <ul class="connected-users-list" id="channel-connected-list"></ul>
+              </aside>
+              <div class="messages">
+                <div style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border)" id="channel-hint">
+                  <div id="channel-title-line" style="font-weight: 600; font-size: 1rem">Select a channel</div>
+                </div>
+                <div class="messages-inner" id="messages-inner"></div>
+                <div class="composer">
+                  <textarea id="msg-input" placeholder="Write a message…" disabled></textarea>
+                  <button type="button" class="btn btn-primary" id="send-btn" disabled>Send</button>
+                </div>
+                <div style="padding: 0.5rem 1rem; border-top: 1px solid var(--border)">
+                  <button type="button" class="btn btn-ghost" id="load-older" disabled>Load older</button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section id="view-admin" class="view hidden">
+            <div class="admin-grid">
+              <div class="panel admin-branding-panel">
+                <div class="section-label">Branding &amp; appearance</div>
+                <p class="admin-branding-hint">
+                  Custom title, logotype, and sidebar colors for this browser only (stored locally). Admin only.
+                </p>
+
+                <div class="admin-subsection-label">Application title</div>
+                <div class="filter-row admin-brand-row">
+                  <input type="text" id="admin-app-title" class="input" maxlength="120" placeholder="Demo Chat" autocomplete="off" />
+                  <button type="button" class="btn btn-primary" id="btn-admin-title-apply">Apply title</button>
+                </div>
+
+                <div class="admin-subsection-label">Logotype</div>
+                <div class="field">
+                  <label for="admin-logo-mode">Show in sidebar and sign-in</label>
+                  <select id="admin-logo-mode" class="input">
+                    <option value="default">Built-in chat icon</option>
+                    <option value="none">No logo (title only)</option>
+                    <option value="custom">Custom image (URL or upload)</option>
+                  </select>
+                </div>
+                <div class="field" id="admin-logo-custom-wrap">
+                  <label for="admin-logo-url">Image URL (https://… or relative path)</label>
+                  <input type="url" id="admin-logo-url" class="input" placeholder="https://example.com/logo.png" autocomplete="off" />
+                </div>
+                <div class="filter-row admin-brand-row">
+                  <div class="filter-field">
+                    <label class="section-label" for="admin-logo-file">Or upload image</label>
+                    <input type="file" id="admin-logo-file" accept="image/*" />
+                  </div>
+                  <button type="button" class="btn btn-primary" id="btn-admin-logo-apply">Apply logo</button>
+                  <button type="button" class="btn btn-ghost" id="btn-admin-brand-reset">Reset title &amp; logo</button>
+                </div>
+
+                <div class="admin-subsection-label">Sidebar colors</div>
+                <div class="filter-row sidebar-theme-row">
+                  <div class="filter-field sidebar-theme-picker-wrap">
+                    <label class="section-label" for="admin-sidebar-color">Menu background</label>
+                    <input type="color" id="admin-sidebar-color" value="#1a2744" title="Pick background" />
+                  </div>
+                  <div class="filter-field sidebar-theme-picker-wrap">
+                    <label class="section-label" for="admin-sidebar-text-color">Menu text</label>
+                    <input type="color" id="admin-sidebar-text-color" value="#e8eef7" title="Font color" />
+                  </div>
+                  <button type="button" class="btn btn-primary" id="btn-sidebar-apply">Apply colors</button>
+                  <button type="button" class="btn btn-ghost" id="btn-sidebar-reset">Reset colors</button>
+                </div>
+                <div class="sidebar-presets" aria-label="Preset sidebar colors">
+                  <button type="button" class="sidebar-preset" data-hex="#1a2744" title="Navy">Navy</button>
+                  <button type="button" class="sidebar-preset" data-hex="#0f172a" title="Slate">Slate</button>
+                  <button type="button" class="sidebar-preset" data-hex="#14532d" title="Forest">Forest</button>
+                  <button type="button" class="sidebar-preset" data-hex="#4c0519" title="Wine">Wine</button>
+                  <button type="button" class="sidebar-preset" data-hex="#422006" title="Bronze">Bronze</button>
+                  <button type="button" class="sidebar-preset" data-hex="#f1f5f9" title="Light gray">Light</button>
+                </div>
+              </div>
+
+              <div class="panel">
+                <div class="section-label">Users</div>
+                <div class="filter-row">
+                  <button type="button" class="btn btn-primary" id="btn-new-user">+ New user</button>
+                </div>
+                <div class="table-wrap">
+                  <table class="data-table" id="users-table">
+                    <thead>
+                      <tr>
+                        <th>User</th>
+                        <th>Role</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="panel">
+                <div class="section-label">Channels</div>
+                <div class="filter-row">
+                  <div class="filter-field">
+                    <div class="section-label">Name</div>
+                    <input type="text" id="new-channel-name" class="input" placeholder="channel-name" />
+                  </div>
+                  <button type="button" class="btn btn-dark" id="btn-create-channel">Create</button>
+                </div>
+                <div class="table-wrap">
+                  <table class="data-table" id="channels-table">
+                    <thead>
+                      <tr>
+                        <th>Channel</th>
+                        <th>Webhook</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="panel">
+                <div class="section-label">Membership</div>
+                <div class="filter-row">
+                  <div class="filter-field">
+                    <div class="section-label">Channel</div>
+                    <select id="member-channel-select"></select>
+                  </div>
+                  <div class="filter-field">
+                    <div class="section-label">User</div>
+                    <select id="member-user-select"></select>
+                  </div>
+                  <button type="button" class="btn btn-dark" id="btn-add-member">Add</button>
+                </div>
+                <div class="table-wrap">
+                  <table class="data-table" id="members-table">
+                    <thead>
+                      <tr>
+                        <th>Member</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section id="view-account" class="view hidden">
+            <div class="panel" style="max-width: 420px">
+              <div class="section-label">Change password</div>
+              <div class="field">
+                <label for="new-password">New password</label>
+                <input type="password" id="new-password" class="input" autocomplete="new-password" />
+              </div>
+              <button type="button" class="btn btn-primary" id="btn-save-password">Update password</button>
+              <div id="account-msg" class="error-text hidden"></div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <dialog id="dlg-user" style="border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; max-width: 400px">
+      <h3 style="margin-top: 0">New user</h3>
+      <div class="field">
+        <label>Username</label>
+        <input type="text" id="dlg-username" class="input" />
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" id="dlg-password" class="input" />
+      </div>
+      <div class="field">
+        <label><input type="checkbox" id="dlg-is-admin" /> Admin</label>
+      </div>
+      <div style="display: flex; gap: 0.5rem; justify-content: flex-end">
+        <button type="button" class="btn btn-ghost" id="dlg-cancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="dlg-save">Create</button>
+      </div>
+    </dialog>
+
+    <dialog id="dlg-channel" class="dlg-channel">
+      <div class="dlg-channel-shell">
+      <div class="dlg-channel-body">
+        <h3 style="margin-top: 0">Edit channel</h3>
+        <input type="hidden" id="dlg-ch-id" />
+        <div class="field">
+          <label>Name</label>
+          <input type="text" id="dlg-ch-name" class="input" />
+        </div>
+        <div class="field">
+          <label><input type="checkbox" id="dlg-ch-anon" /> Allow anonymous webhook</label>
+        </div>
+        <p style="font-size: 0.8rem; color: var(--danger)" id="dlg-ch-warn" class="hidden">
+          Anonymous webhooks accept unauthenticated HTTP POSTs. Anyone who can reach this URL can post as the attribution user. Use only in isolated demos.
+        </p>
+        <div class="field">
+          <label>Anonymous posts as user</label>
+          <select id="dlg-ch-user"></select>
+        </div>
+        <p style="font-size: 0.75rem; color: var(--muted)" class="dlg-ch-hook-line">
+          Webhook URL (authenticated): <code id="dlg-ch-hook-url" class="dlg-ch-hook-url"></code>
+        </p>
+      </div>
+      <div class="dlg-channel-actions">
+        <button type="button" class="btn btn-ghost" id="dlg-ch-cancel">Close</button>
+        <button type="button" class="btn btn-primary" id="dlg-ch-save">Save</button>
+      </div>
+      </div>
+    </dialog>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

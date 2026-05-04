@@ -1,0 +1,72 @@
+# Image name "demo-chat:latest" below is resolved inside this namespace only if the
+# ImageStream has local lookup enabled (otherwise Kubernetes treats it as docker.io/library/demo-chat).
+# After `oc start-build` creates the ImageStream, run:
+#   oc patch imagestream/demo-chat -n demo-chat -p '{"spec":{"lookupPolicy":{"local":true}}}'
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-chat
+  namespace: demo-chat
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: demo-chat
+  template:
+    metadata:
+      labels:
+        app: demo-chat
+    spec:
+      securityContext:
+        # OpenShift restricted-v3 / Kubernetes 1.33+ user namespaces
+        hostUsers: false
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: demo-chat
+          image: demo-chat:latest
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: true
+          ports:
+            - containerPort: 8000
+              name: http
+          env:
+            - name: DATABASE_URL
+              value: "sqlite:////data/chat.db"
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: demo-chat-secrets
+                  key: jwt-secret
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: demo-chat-sqlite
