@@ -24,12 +24,57 @@
   box-sizing: border-box;
 }
 
+html {
+  height: 100%;
+  overflow: hidden;
+}
+
 body {
   margin: 0;
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100vh;
+  max-height: 100dvh;
+  overflow: hidden;
   font-family: var(--font);
   background: var(--surface);
   color: var(--text);
-  min-height: 100vh;
+}
+
+/* Login only: center the card; avoid stretching the panel to full viewport height */
+body:not(:has(#app-view:not(.hidden))) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+}
+
+body:has(#app-view:not(.hidden)) {
+  display: block;
+  padding: 0;
+}
+
+#login-view {
+  max-height: 100vh;
+  max-height: 100dvh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+}
+
+#app-view.layout {
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100vh;
+  max-height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.layout {
+  display: flex;
+  min-height: 0;
 }
 
 a {
@@ -40,11 +85,6 @@ a:hover {
   text-decoration: underline;
 }
 
-.layout {
-  display: flex;
-  min-height: 100vh;
-}
-
 .sidebar {
   width: 260px;
   flex-shrink: 0;
@@ -53,6 +93,9 @@ a:hover {
   display: flex;
   flex-direction: column;
   padding: 1.25rem 0;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .brand {
@@ -230,14 +273,16 @@ a:hover {
 }
 
 .main {
-  flex: 1;
+  flex: 1 1 0;
   display: flex;
   flex-direction: column;
   min-width: 0;
   min-height: 0;
+  overflow: hidden;
 }
 
 .topbar {
+  flex-shrink: 0;
   background: var(--panel);
   border-bottom: 1px solid var(--border);
   padding: 1rem 1.5rem;
@@ -265,24 +310,34 @@ a:hover {
 }
 
 .content {
-  flex: 1;
+  flex: 1 1 0;
   min-height: 0;
   padding: 1.25rem 1.5rem;
-  overflow: auto;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
 }
 
 .view {
-  flex: 1;
+  flex: 1 1 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
 }
 
 #view-chat {
-  flex: 1;
+  flex: 1 1 0;
   min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+#view-admin,
+#view-account {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .panel {
@@ -412,7 +467,7 @@ table.data-table {
 
 .login-card {
   max-width: 380px;
-  margin: 4rem auto;
+  margin: 0 auto;
   padding: 2rem;
 }
 
@@ -507,13 +562,19 @@ table.data-table {
 }
 
 .chat-layout {
-  flex: 1;
+  flex: 1 1 0;
   min-height: 0;
+  overflow: hidden;
   display: grid;
-  grid-template-columns: minmax(200px, 240px) minmax(140px, 200px) 1fr;
+  grid-template-columns: minmax(200px, 240px) minmax(140px, 200px) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   gap: 1rem;
   align-items: stretch;
   align-content: stretch;
+}
+
+.chat-layout > * {
+  min-height: 0;
 }
 
 .channel-connected-panel {
@@ -620,13 +681,30 @@ table.data-table {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  min-width: 0;
   height: 100%;
+  overflow: hidden;
 }
 
-.messages-inner {
-  flex: 1;
+#channel-hint {
+  flex-shrink: 0;
+}
+
+.messages-inner,
+#messages-inner {
+  flex: 1 1 0;
+  min-height: 0;
+  min-width: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 1rem;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+.messages > .composer,
+.messages > div:last-child {
+  flex-shrink: 0;
 }
 
 .msg-row {
@@ -690,10 +768,17 @@ table.data-table {
   }
 
   .channel-list,
-  .channel-connected-panel,
+  .channel-connected-panel {
+    height: auto;
+    max-height: min(65vh, 720px);
+    min-height: min(40vh, 320px);
+    overflow: auto;
+  }
+
   .messages {
     height: auto;
-    max-height: none;
+    max-height: min(65vh, 720px);
     min-height: min(40vh, 320px);
+    overflow: hidden;
   }
 }
