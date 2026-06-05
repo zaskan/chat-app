@@ -96,6 +96,10 @@ class MessagePage(BaseModel):
     next_before_id: uuid.UUID | None = None
 
 
+class ChannelHistoryClearOut(BaseModel):
+    deleted_count: int
+
+
 # Instance settings (UI / branding — extend with more groups later)
 _HEX6 = re.compile(r"^#[0-9a-fA-F]{6}$")
 

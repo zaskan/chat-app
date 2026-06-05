@@ -162,6 +162,23 @@ def broadcast_message_created(db: Session, msg: Message) -> None:
         asyncio.run(_send())
 
 
+def broadcast_channel_history_cleared(channel_id: uuid.UUID, deleted_count: int) -> None:
+    payload = {
+        "type": "channel_history_cleared",
+        "channel_id": str(channel_id),
+        "deleted_count": deleted_count,
+    }
+
+    async def _send() -> None:
+        await manager.broadcast(channel_id, payload)
+
+    try:
+        loop = asyncio.get_running_loop()
+        loop.create_task(_send())
+    except RuntimeError:
+        asyncio.run(_send())
+
+
 def _can_access_channel(db: Session, user: User, channel_id: uuid.UUID) -> bool:
     if user.is_admin:
         return True

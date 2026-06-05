@@ -561,6 +561,16 @@ table.data-table {
   background: var(--panel);
 }
 
+.dlg-ch-danger {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #fecaca;
+}
+
+.dlg-ch-danger .admin-danger-hint {
+  margin-bottom: 0.75rem;
+}
+
 .chat-layout {
   flex: 1 1 0;
   min-height: 0;

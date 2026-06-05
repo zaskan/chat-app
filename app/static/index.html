@@ -324,6 +324,15 @@
         <p style="font-size: 0.75rem; color: var(--muted)" class="dlg-ch-hook-line">
           Webhook URL (authenticated): <code id="dlg-ch-hook-url" class="dlg-ch-hook-url"></code>
         </p>
+        <div class="dlg-ch-danger">
+          <p class="admin-danger-hint">
+            Clear history permanently deletes all messages and threads in this channel.
+            The channel, members, and webhook settings are kept.
+          </p>
+          <button type="button" class="btn btn-dark" id="dlg-ch-clear-history">
+            Clear history
+          </button>
+        </div>
       </div>
       <div class="dlg-channel-actions">
         <button type="button" class="btn btn-ghost" id="dlg-ch-cancel">Close</button>
@@ -332,6 +341,6 @@
       </div>
     </dialog>
 
-    <script src="/app.js?v=layout8"></script>
+    <script src="/app.js?v=layout9"></script>
   </body>
 </html>

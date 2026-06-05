@@ -509,6 +509,9 @@ function wsConnect() {
           updateReplyCountBadge(msg.root_id, msg.reply_count);
         }
       }
+      if (msg.type === "channel_history_cleared" && msg.channel_id) {
+        clearChannelFeedState(msg.channel_id);
+      }
     } catch (_) {}
   };
   state.ws.onclose = () => {
@@ -672,6 +675,43 @@ function closeThread() {
   }
   if (el("thread-load-older")) {
     el("thread-load-older").disabled = true;
+  }
+}
+
+function clearChannelFeedState(channelId) {
+  if (String(state.currentChannelId) !== String(channelId)) {
+    return;
+  }
+  closeThread();
+  state.messageIds.clear();
+  state.messageCache.clear();
+  state.nextBeforeId = null;
+  state.hasMore = false;
+  el("messages-inner").innerHTML = "";
+  el("load-older").disabled = true;
+}
+
+async function clearChannelHistory() {
+  const id = el("dlg-ch-id")?.value;
+  const name = el("dlg-ch-name")?.value?.trim() || "this channel";
+  if (!id) {
+    return;
+  }
+  if (
+    !window.confirm(
+      `Clear all message history in #${name}?\n\nThis permanently deletes every message and thread reply in this channel. This cannot be undone.`
+    )
+  ) {
+    return;
+  }
+  try {
+    const result = await api(`/channels/${id}/messages`, { method: "DELETE" });
+    clearChannelFeedState(id);
+    el("dlg-channel")?.close();
+    const count = result?.deleted_count ?? 0;
+    alert(`Cleared ${count} message${count === 1 ? "" : "s"} from #${name}.`);
+  } catch (e) {
+    alert(e.message || String(e));
   }
 }
 
@@ -1497,6 +1537,7 @@ document.addEventListener("DOMContentLoaded", () => {
     el("dlg-ch-warn").classList.toggle("hidden", !el("dlg-ch-anon").checked);
   };
   el("dlg-ch-cancel").onclick = () => el("dlg-channel").close();
+  el("dlg-ch-clear-history")?.addEventListener("click", clearChannelHistory);
   el("dlg-ch-save").onclick = async () => {
     const id = el("dlg-ch-id").value;
     const name = el("dlg-ch-name").value.trim();

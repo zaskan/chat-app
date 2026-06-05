@@ -186,6 +186,30 @@ def post_message(
 
 
 @router.delete(
+    "/channels/{channel_id_or_name}/messages",
+    response_model=schemas.ChannelHistoryClearOut,
+)
+def clear_channel_history(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+    ch: Channel = Depends(get_channel_by_ref),
+) -> schemas.ChannelHistoryClearOut:
+    channel_id = ch.id
+    deleted = (
+        db.query(Message)
+        .filter(Message.channel_id == channel_id)
+        .delete(synchronize_session=False)
+    )
+    db.commit()
+
+    from app.websocket import broadcast_channel_history_cleared
+
+    broadcast_channel_history_cleared(channel_id, deleted)
+
+    return schemas.ChannelHistoryClearOut(deleted_count=deleted)
+
+
+@router.delete(
     "/channels/{channel_id_or_name}/messages/{message_id}",
     status_code=status.HTTP_204_NO_CONTENT,
 )
