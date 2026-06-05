@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app import schemas
 from app.auth_deps import User, require_admin
 from app.db import get_db
+from app.services import instance_reset as reset_svc
 from app.services import instance_settings as settings_svc
 
 router = APIRouter(tags=["settings"])
@@ -72,3 +73,22 @@ def delete_branding_overrides(
 ) -> Response:
     settings_svc.replace_branding_defaults(db)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(
+    "/admin/reset",
+    response_model=schemas.InstanceResetOut,
+    summary="Reset instance to demo defaults (admin)",
+    description=(
+        "Deletes all channels (messages and memberships), all non-seed users, "
+        "and all server-side instance settings. Restores the seed admin user "
+        "with the configured seed password."
+    ),
+)
+def reset_instance_admin(
+    body: schemas.InstanceResetRequest,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> schemas.InstanceResetOut:
+    _ = body.confirm
+    return reset_svc.reset_instance(db)

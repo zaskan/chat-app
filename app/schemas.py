@@ -229,3 +229,12 @@ class InstanceSettingsPatch(BaseModel):
     """Merge patch for instance settings. Only provided sections/fields are updated."""
 
     branding: BrandingSettingsPatch | None = None
+
+
+class InstanceResetRequest(BaseModel):
+    confirm: Literal[True]
+
+
+class InstanceResetOut(BaseModel):
+    admin_username: str
+    password_reset: bool = True

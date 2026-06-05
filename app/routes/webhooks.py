@@ -8,8 +8,9 @@ from app import schemas
 from app.auth_deps import authenticate_user, decode_token, get_user_by_id
 from app.channel_ref import get_channel_by_ref
 from app.db import get_db
-from app.services.membership import is_channel_member
 from app.models import Channel, Message, User
+from app.services.membership import is_channel_member
+from app.services.message_out import message_to_out, validate_reply_parent
 from app.websocket import broadcast_message_created
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
@@ -64,6 +65,40 @@ def _resolve_webhook_user(
     return None
 
 
+def _resolve_parent_id(
+    db: Session, channel_id: uuid.UUID, body: schemas.MessageCreate
+) -> uuid.UUID | None:
+    if body.parent_id is None:
+        return None
+    try:
+        validate_reply_parent(db, channel_id, body.parent_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+    return body.parent_id
+
+
+def _post_webhook_message(
+    db: Session,
+    channel_id: uuid.UUID,
+    user_id: uuid.UUID,
+    body: schemas.MessageCreate,
+) -> schemas.MessageOut:
+    msg = Message(
+        channel_id=channel_id,
+        user_id=user_id,
+        body=body.body,
+        parent_id=_resolve_parent_id(db, channel_id, body),
+    )
+    db.add(msg)
+    db.commit()
+    db.refresh(msg)
+    broadcast_message_created(db, msg)
+    return message_to_out(db, msg)
+
+
 @router.post(
     "/channels/{channel_id_or_name}/messages",
     response_model=schemas.MessageOut,
@@ -85,24 +120,7 @@ def webhook_post_message(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="User is not a member of this channel",
             )
-        msg = Message(
-            channel_id=channel_id,
-            user_id=user.id,
-            body=body.body,
-        )
-        db.add(msg)
-        db.commit()
-        db.refresh(msg)
-        broadcast_message_created(db, msg)
-        author = db.query(User).filter(User.id == msg.user_id).first()
-        return schemas.MessageOut(
-            id=msg.id,
-            channel_id=msg.channel_id,
-            user_id=msg.user_id,
-            username=author.username if author else "?",
-            body=msg.body,
-            created_at=msg.created_at,
-        )
+        return _post_webhook_message(db, channel_id, user.id, body)
 
     if ch.allow_anonymous_webhook and ch.anonymous_webhook_user_id:
         if not is_channel_member(db, ch.anonymous_webhook_user_id, channel_id):
@@ -110,23 +128,8 @@ def webhook_post_message(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Misconfigured anonymous webhook user (not a member)",
             )
-        msg = Message(
-            channel_id=channel_id,
-            user_id=ch.anonymous_webhook_user_id,
-            body=body.body,
-        )
-        db.add(msg)
-        db.commit()
-        db.refresh(msg)
-        broadcast_message_created(db, msg)
-        author = db.query(User).filter(User.id == msg.user_id).first()
-        return schemas.MessageOut(
-            id=msg.id,
-            channel_id=msg.channel_id,
-            user_id=msg.user_id,
-            username=author.username if author else "?",
-            body=msg.body,
-            created_at=msg.created_at,
+        return _post_webhook_message(
+            db, channel_id, ch.anonymous_webhook_user_id, body
         )
 
     raise HTTPException(

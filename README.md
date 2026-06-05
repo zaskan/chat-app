@@ -14,7 +14,7 @@ Repository layout follows the same conventions as [itsm-app](https://github.com/
 - **Channels & membership**: users only see channels they belong to (admins see all).
 - **Messages**: paginated history `GET /api/v1/channels/{channel_id}/messages?limit=&before_id=` with `has_more` and `next_before_id` for bot pagination.
 - **WebSocket** (`/api/v1/ws?token=<jwt>`): JSON commands `subscribe`, `send_message`, `unsubscribe`; server events `message_created`, `subscribed`, `error`.
-- **Inbound webhooks**: `POST /api/v1/webhooks/channels/{channel_id}/messages` with JSON `{"body":"..."}`.
+- **Inbound webhooks**: `POST /api/v1/webhooks/channels/{channel_id}/messages` with JSON `{"body":"..."}` and optional `"parent_id":"<root-message-uuid>"` for thread replies.
   - **Authenticated**: same JWT as the API, or **HTTP Basic** (username/password).
   - **Anonymous** (demo only): per-channel `allow_anonymous_webhook` plus `anonymous_webhook_user_id` (member whose name appears on posts). **Anyone who can reach the URL can post** — use only on isolated networks.
 - **AI / bot clients**: authenticate like any user; use REST for history and channel list; WebSocket for live traffic.
@@ -149,14 +149,14 @@ The sample `Deployment` sets security contexts compatible with **Pod Security** 
 |------|---------|
 | Auth | `POST /api/v1/auth/login` |
 | Instance settings (public) | `GET /api/v1/settings` — merged branding (no auth) |
-| Instance settings (admin) | `GET /api/v1/admin/settings` (with `updated_at`), `PATCH /api/v1/admin/settings` (merge patch), `DELETE /api/v1/admin/settings/branding` (remove branding overrides) |
+| Instance settings (admin) | `GET /api/v1/admin/settings` (with `updated_at`), `PATCH /api/v1/admin/settings` (merge patch), `DELETE /api/v1/admin/settings/branding` (remove branding overrides), `POST /api/v1/admin/reset` (wipe channels/users/settings; restore seed admin) |
 | Current user | `GET /api/v1/users/me`, `PATCH /api/v1/users/me` (password) |
 | Users (admin) | `GET/POST /api/v1/users`, `DELETE /api/v1/users/{id}` |
 | Channels | `GET/POST /api/v1/channels`, `PATCH/DELETE /api/v1/channels/{channel_id_or_name}` |
 | Presence | `GET /api/v1/channels/{channel_id_or_name}/presence` — users currently connected via WebSocket (must be a channel member) |
 | Members (admin) | `GET /api/v1/channels/{channel_id_or_name}/members`, `POST …/members`, `DELETE …/members/{user_id}` |
 | Messages | `GET/POST /api/v1/channels/{channel_id_or_name}/messages` (`root_only`, `before_id`, `limit`; POST optional `parent_id` for thread replies), `GET …/messages/{message_id}/replies`, `DELETE …/messages/{message_id}` (admin) |
-| Webhook | `POST /api/v1/webhooks/channels/{channel_id_or_name}/messages` |
+| Webhook | `POST /api/v1/webhooks/channels/{channel_id_or_name}/messages` (optional `parent_id` for thread replies) |
 
 **Channel in the path:** `{channel_id_or_name}` is either the channel’s **UUID** or its exact **name** (e.g. `operations`). If the name contains reserved URL characters, percent-encode the path segment (e.g. `curl` and browsers do this for spaces; for `#` use `%23`).
 
@@ -222,6 +222,12 @@ curl -sS -X PATCH "${BASE}/api/v1/admin/settings" \
 # Admin: clear stored branding overrides (defaults apply again)
 curl -sS -X DELETE "${BASE}/api/v1/admin/settings/branding" \
   -H "Authorization: Bearer ${TOKEN}"
+
+# Admin: reset instance (delete all channels, other users, settings; restore seed admin password)
+curl -sS -X POST "${BASE}/api/v1/admin/reset" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{"confirm":true}'
 ```
 
 ### curl examples (inbound webhook)
@@ -234,6 +240,12 @@ curl -sS -X POST "${BASE}/api/v1/webhooks/channels/${CHANNEL_ID}/messages" \
   -H "Authorization: Bearer ${TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{"body":"Hello from curl"}'
+
+# Thread reply (parent_id = UUID of the top-level message being threaded)
+curl -sS -X POST "${BASE}/api/v1/webhooks/channels/${CHANNEL_ID}/messages" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d "{\"body\":\"Bot reply in thread\",\"parent_id\":\"${ROOT_MESSAGE_ID}\"}"
 
 curl -sS -X POST "${BASE}/api/v1/webhooks/channels/operations/messages" \
   -H "Authorization: Bearer ${TOKEN}" \

@@ -115,26 +115,55 @@ def demo_chat_list_channels() -> str:
 @mcp.tool()
 def demo_chat_list_messages(channel_id_or_name: str, limit: int = 30) -> str:
     """
-    List recent messages in a channel. channel_id_or_name is the channel UUID
-    or its exact name (e.g. 'general').
+    List recent top-level messages in a channel (thread replies excluded).
+    channel_id_or_name is the channel UUID or its exact name (e.g. 'general').
     """
     if not _token():
         return json.dumps({"error": True, "detail": "Set DEMO_CHAT_TOKEN."})
     lim = max(1, min(int(limit), 200))
     return _request(
-        "GET", f"/channels/{_seg(channel_id_or_name)}/messages?limit={lim}"
+        "GET",
+        f"/channels/{_seg(channel_id_or_name)}/messages?limit={lim}&root_only=true",
     )
 
 
 @mcp.tool()
-def demo_chat_send_message(channel_id_or_name: str, body: str) -> str:
-    """Post a message to a channel as the authenticated user (requires token)."""
+def demo_chat_list_thread_replies(
+    channel_id_or_name: str, message_id: str, limit: int = 30
+) -> str:
+    """
+    List replies in a thread. message_id is the root (top-level) message UUID.
+    """
+    if not _token():
+        return json.dumps({"error": True, "detail": "Set DEMO_CHAT_TOKEN."})
+    lim = max(1, min(int(limit), 200))
+    return _request(
+        "GET",
+        f"/channels/{_seg(channel_id_or_name)}/messages/{quote(message_id.strip(), safe='')}/replies?limit={lim}",
+    )
+
+
+def _message_json(body: str, parent_id: str | None) -> dict:
+    payload: dict = {"body": body}
+    if parent_id and parent_id.strip():
+        payload["parent_id"] = parent_id.strip()
+    return payload
+
+
+@mcp.tool()
+def demo_chat_send_message(
+    channel_id_or_name: str, body: str, parent_id: str = ""
+) -> str:
+    """
+    Post a message to a channel as the authenticated user (requires token).
+    Optional parent_id: UUID of a top-level message to reply in that thread.
+    """
     if not _token():
         return json.dumps({"error": True, "detail": "Set DEMO_CHAT_TOKEN."})
     return _request(
         "POST",
         f"/channels/{_seg(channel_id_or_name)}/messages",
-        json_body={"body": body},
+        json_body=_message_json(body, parent_id),
     )
 
 
@@ -147,22 +176,25 @@ def demo_chat_channel_presence(channel_id_or_name: str) -> str:
 
 
 @mcp.tool()
-def demo_chat_webhook_post_message(channel_id_or_name: str, body: str) -> str:
+def demo_chat_webhook_post_message(
+    channel_id_or_name: str, body: str, parent_id: str = ""
+) -> str:
     """
     Post via inbound webhook POST /webhooks/channels/.../messages.
     Uses Bearer DEMO_CHAT_TOKEN if set, else HTTP Basic from
     DEMO_CHAT_WEBHOOK_USER and DEMO_CHAT_WEBHOOK_PASSWORD, else unauthenticated
     (only works when the channel allows anonymous webhook).
+    Optional parent_id: UUID of a top-level message to reply in that thread.
     """
     path = f"/webhooks/channels/{_seg(channel_id_or_name)}/messages"
+    payload = _message_json(body, parent_id)
     use_bearer = bool(_token())
     if not use_bearer and not (
         os.environ.get("DEMO_CHAT_WEBHOOK_USER")
         or os.environ.get("DEMO_CHAT_WEBHOOK_PASSWORD")
     ):
-        # anonymous — no auth headers
-        return _request("POST", path, json_body={"body": body}, use_bearer=False)
-    return _request("POST", path, json_body={"body": body}, use_bearer=use_bearer)
+        return _request("POST", path, json_body=payload, use_bearer=False)
+    return _request("POST", path, json_body=payload, use_bearer=use_bearer)
 
 
 if __name__ == "__main__":

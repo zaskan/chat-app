@@ -252,6 +252,19 @@
                   </table>
                 </div>
               </div>
+
+              <div class="panel admin-danger-panel">
+                <div class="section-label">Danger zone</div>
+                <p class="admin-danger-hint">
+                  Reset instance deletes all channels, messages, channel memberships, other users,
+                  and server-side instance settings. Only the seed admin account remains; its
+                  password is reset to the default (<code>changeme</code> unless configured otherwise).
+                  This cannot be undone.
+                </p>
+                <button type="button" class="btn btn-dark" id="btn-admin-instance-reset">
+                  Reset instance
+                </button>
+              </div>
             </div>
           </section>
 
@@ -319,6 +332,6 @@
       </div>
     </dialog>
 
-    <script src="/app.js?v=layout7"></script>
+    <script src="/app.js?v=layout8"></script>
   </body>
 </html>

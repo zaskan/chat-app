@@ -961,6 +961,57 @@ function startPresencePolling() {
   }, 4000);
 }
 
+async function resetInstance() {
+  const ok = window.confirm(
+    "Reset instance?\n\nThis will permanently delete:\n" +
+      "• All channels and messages\n" +
+      "• All channel memberships\n" +
+      "• All users except the seed admin\n" +
+      "• All server-side instance settings\n\n" +
+      "The seed admin password will be reset to the default (changeme).\n\n" +
+      "This cannot be undone."
+  );
+  if (!ok) {
+    return;
+  }
+  try {
+    const result = await api("/admin/reset", {
+      method: "POST",
+      json: { confirm: true },
+    });
+    closeThread();
+    if (state.currentChannelId && state.ws?.readyState === WebSocket.OPEN) {
+      state.ws.send(
+        JSON.stringify({ type: "unsubscribe", channel_id: state.currentChannelId })
+      );
+    }
+    state.currentChannelId = null;
+    state.messageIds.clear();
+    state.messageCache.clear();
+    state.nextBeforeId = null;
+    state.hasMore = false;
+    el("messages-inner").innerHTML = "";
+    el("msg-input").disabled = true;
+    el("msg-input").value = "";
+    el("send-btn").disabled = true;
+    el("load-older").disabled = true;
+    const title = el("channel-title-line");
+    if (title) {
+      title.textContent = "Select a channel";
+    }
+    renderConnectedUsersPanel([]);
+    await refreshChannels();
+    await refreshUsersTable();
+    await refreshChannelsTable();
+    await refreshMembersTable();
+    alert(
+      `Instance reset complete.\n\nSign in as "${result.admin_username}" with the default seed password if needed.`
+    );
+  } catch (e) {
+    alert(e.message || String(e));
+  }
+}
+
 async function refreshChannels() {
   state.channels = await api("/channels");
   const box = el("channel-list");
@@ -1424,6 +1475,7 @@ document.addEventListener("DOMContentLoaded", () => {
   el("btn-sidebar-reset")?.addEventListener("click", () => {
     resetSidebarTheme();
   });
+  el("btn-admin-instance-reset")?.addEventListener("click", resetInstance);
   document.querySelectorAll(".sidebar-preset").forEach((btn) => {
     btn.addEventListener("click", () => {
       const hex = btn.getAttribute("data-hex");
