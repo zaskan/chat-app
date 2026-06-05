@@ -577,6 +577,104 @@ table.data-table {
   min-height: 0;
 }
 
+.chat-layout--thread-open {
+  grid-template-columns:
+    minmax(200px, 240px)
+    minmax(140px, 200px)
+    minmax(0, 1fr)
+    minmax(280px, 360px);
+}
+
+.thread-panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.thread-panel-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.thread-panel-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.thread-parent {
+  flex-shrink: 0;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: #f9fafb;
+}
+
+.thread-parent .msg-row {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.thread-messages-wrap {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.thread-messages-wrap .messages-inner {
+  flex: 1 1 0;
+}
+
+.thread-panel-footer {
+  flex-shrink: 0;
+  padding: 0.5rem 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.msg-row__actions {
+  margin-top: 0.35rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.msg-reply-btn {
+  font-size: 0.78rem;
+  padding: 0.2rem 0.45rem;
+}
+
+.msg-reply-count {
+  font-size: 0.78rem;
+  color: var(--primary);
+  cursor: pointer;
+}
+
+.msg-reply-count:hover {
+  text-decoration: underline;
+}
+
+.msg-row--thread-open {
+  background: #eff6ff;
+  border-radius: 4px;
+  margin-left: -0.35rem;
+  margin-right: -0.35rem;
+  padding-left: 0.35rem;
+  padding-right: 0.35rem;
+}
+
 .channel-connected-panel {
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -780,5 +878,18 @@ table.data-table {
     max-height: min(65vh, 720px);
     min-height: min(40vh, 320px);
     overflow: hidden;
+  }
+
+  .chat-layout--thread-open {
+    grid-template-columns: 1fr;
+  }
+
+  .thread-panel {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    height: auto;
+    max-height: none;
+    border-radius: 0;
   }
 }

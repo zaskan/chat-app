@@ -1,6 +1,6 @@
 from collections.abc import Generator
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
 from app.config import settings
@@ -25,3 +25,25 @@ def get_db() -> Generator[Session, None, None]:
         yield db
     finally:
         db.close()
+
+
+def run_schema_migrations() -> None:
+    """Apply lightweight column additions for existing DBs (create_all is not enough)."""
+    insp = inspect(engine)
+    if not insp.has_table("messages"):
+        return
+    cols = {c["name"] for c in insp.get_columns("messages")}
+    if "parent_id" not in cols:
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    "ALTER TABLE messages ADD COLUMN parent_id TEXT "
+                    "REFERENCES messages(id) ON DELETE CASCADE"
+                )
+            )
+            conn.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS ix_messages_parent_id "
+                    "ON messages (parent_id)"
+                )
+            )

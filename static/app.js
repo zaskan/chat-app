@@ -32,8 +32,14 @@ const state = {
   channels: [],
   currentChannelId: null,
   messageIds: new Set(),
+  messageCache: new Map(),
   nextBeforeId: null,
   hasMore: false,
+  currentThreadRootId: null,
+  threadRootMessage: null,
+  threadMessageIds: new Set(),
+  threadNextBeforeId: null,
+  threadHasMore: false,
   ws: null,
   wsReady: false,
   presenceInterval: null,
@@ -486,8 +492,21 @@ function wsConnect() {
       }
       if (msg.type === "message_created" && msg.payload) {
         const p = msg.payload;
-        if (p.channel_id === state.currentChannelId) {
+        if (String(p.channel_id) !== String(state.currentChannelId)) {
+          return;
+        }
+        cacheMessage(p);
+        if (!p.parent_id) {
           appendMessage(p, true);
+        } else if (
+          String(state.currentThreadRootId) === String(p.parent_id)
+        ) {
+          appendThreadMessage(p, true);
+        }
+      }
+      if (msg.type === "thread_updated" && msg.root_id != null) {
+        if (String(msg.channel_id) === String(state.currentChannelId)) {
+          updateReplyCountBadge(msg.root_id, msg.reply_count);
         }
       }
     } catch (_) {}
@@ -536,16 +555,226 @@ function formatTime(iso) {
   }
 }
 
-function renderMessageRow(p) {
+function cacheMessage(p) {
+  if (p?.id) {
+    state.messageCache.set(String(p.id), p);
+  }
+}
+
+function bindReplyCountClick(countEl, rootId) {
+  if (countEl.dataset.replyBound === "1") {
+    return;
+  }
+  countEl.dataset.replyBound = "1";
+  countEl.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    const cached = state.messageCache.get(String(rootId));
+    openThread(rootId, cached);
+  });
+}
+
+function renderMessageRow(p, options = {}) {
+  const { showReplyActions = false, highlight = false } = options;
   const row = document.createElement("div");
-  row.className = "msg-row";
+  row.className = "msg-row" + (highlight ? " msg-row--thread-open" : "");
   row.dataset.id = p.id;
   row.innerHTML = `<div class="msg-meta"><strong>${escapeHtml(
     p.username
   )}</strong> · ${escapeHtml(formatTime(p.created_at))}</div><div class="msg-body">${escapeHtml(
     p.body
   )}</div>`;
+
+  if (showReplyActions) {
+    const actions = document.createElement("div");
+    actions.className = "msg-row__actions";
+
+    const replyBtn = document.createElement("button");
+    replyBtn.type = "button";
+    replyBtn.className = "btn btn-ghost msg-reply-btn";
+    replyBtn.textContent = "Reply in thread";
+    replyBtn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      openThread(p.id, p);
+    });
+    actions.appendChild(replyBtn);
+
+    const countEl = document.createElement("span");
+    countEl.className = "msg-reply-count";
+    countEl.dataset.rootId = p.id;
+    bindReplyCountClick(countEl, p.id);
+    const count = p.reply_count || 0;
+    if (count > 0) {
+      countEl.textContent = `${count} ${count === 1 ? "reply" : "replies"}`;
+    } else {
+      countEl.classList.add("hidden");
+    }
+    actions.appendChild(countEl);
+    row.appendChild(actions);
+  }
+
   return row;
+}
+
+function updateReplyCountBadge(rootId, count) {
+  const row = document.querySelector(`.msg-row[data-id="${rootId}"]`);
+  if (!row) {
+    return;
+  }
+  let countEl = row.querySelector(".msg-reply-count");
+  if (!countEl) {
+    const actions = row.querySelector(".msg-row__actions");
+    if (!actions) {
+      return;
+    }
+    countEl = document.createElement("span");
+    countEl.className = "msg-reply-count";
+    countEl.dataset.rootId = rootId;
+    actions.appendChild(countEl);
+  }
+  bindReplyCountClick(countEl, rootId);
+  const n = Number(count) || 0;
+  if (n > 0) {
+    countEl.classList.remove("hidden");
+    countEl.textContent = `${n} ${n === 1 ? "reply" : "replies"}`;
+  } else {
+    countEl.classList.add("hidden");
+    countEl.textContent = "";
+  }
+  const cached = state.messageCache.get(String(rootId));
+  if (cached) {
+    cached.reply_count = n;
+  }
+}
+
+function resetThreadPanelDom() {
+  state.threadMessageIds.clear();
+  state.threadNextBeforeId = null;
+  state.threadHasMore = false;
+  el("thread-messages-inner").innerHTML = "";
+  el("thread-parent").innerHTML = "";
+  document.querySelectorAll(".msg-row--thread-open").forEach((n) => {
+    n.classList.remove("msg-row--thread-open");
+  });
+}
+
+function closeThread() {
+  state.currentThreadRootId = null;
+  state.threadRootMessage = null;
+  resetThreadPanelDom();
+  document.querySelector(".chat-layout")?.classList.remove("chat-layout--thread-open");
+  el("thread-panel")?.classList.add("hidden");
+  if (el("thread-msg-input")) {
+    el("thread-msg-input").disabled = true;
+    el("thread-msg-input").value = "";
+  }
+  if (el("thread-send-btn")) {
+    el("thread-send-btn").disabled = true;
+  }
+  if (el("thread-load-older")) {
+    el("thread-load-older").disabled = true;
+  }
+}
+
+async function openThread(rootId, rootMessage) {
+  if (!state.currentChannelId) {
+    return;
+  }
+  resetThreadPanelDom();
+  state.currentThreadRootId = rootId;
+  state.threadRootMessage =
+    rootMessage || state.messageCache.get(String(rootId)) || null;
+
+  document.querySelector(".chat-layout")?.classList.add("chat-layout--thread-open");
+  el("thread-panel")?.classList.remove("hidden");
+
+  document
+    .querySelector(`.msg-row[data-id="${rootId}"]`)
+    ?.classList.add("msg-row--thread-open");
+
+  if (state.threadRootMessage) {
+    el("thread-parent").appendChild(
+      renderMessageRow(state.threadRootMessage, { showReplyActions: false })
+    );
+  }
+
+  el("thread-msg-input").disabled = false;
+  el("thread-send-btn").disabled = false;
+  await loadThreadRepliesFirstPage();
+}
+
+function appendThreadMessage(p, dedupe) {
+  if (dedupe && state.threadMessageIds.has(p.id)) {
+    return;
+  }
+  state.threadMessageIds.add(p.id);
+  cacheMessage(p);
+  const inner = el("thread-messages-inner");
+  inner.appendChild(renderMessageRow(p, { showReplyActions: false }));
+  inner.scrollTop = inner.scrollHeight;
+}
+
+function prependThreadMessages(items) {
+  const inner = el("thread-messages-inner");
+  const frag = document.createDocumentFragment();
+  items.forEach((p) => {
+    if (!state.threadMessageIds.has(p.id)) {
+      state.threadMessageIds.add(p.id);
+      cacheMessage(p);
+      frag.appendChild(renderMessageRow(p, { showReplyActions: false }));
+    }
+  });
+  inner.insertBefore(frag, inner.firstChild);
+}
+
+async function loadThreadRepliesFirstPage() {
+  if (!state.currentChannelId || !state.currentThreadRootId) {
+    return;
+  }
+  const q = new URLSearchParams({ limit: "50" });
+  const page = await api(
+    `/channels/${state.currentChannelId}/messages/${state.currentThreadRootId}/replies?${q}`
+  );
+  state.threadHasMore = page.has_more;
+  state.threadNextBeforeId = page.next_before_id;
+  page.items.forEach((m) => appendThreadMessage(m, false));
+  el("thread-load-older").disabled = !state.threadHasMore;
+}
+
+async function loadThreadOlder() {
+  if (
+    !state.currentChannelId ||
+    !state.currentThreadRootId ||
+    !state.threadNextBeforeId
+  ) {
+    return;
+  }
+  const q = new URLSearchParams({
+    limit: "50",
+    before_id: state.threadNextBeforeId,
+  });
+  const page = await api(
+    `/channels/${state.currentChannelId}/messages/${state.currentThreadRootId}/replies?${q}`
+  );
+  state.threadHasMore = page.has_more;
+  state.threadNextBeforeId = page.next_before_id;
+  prependThreadMessages(page.items);
+  el("thread-load-older").disabled = !state.threadHasMore;
+}
+
+async function sendThreadMessage() {
+  const body = el("thread-msg-input").value.trim();
+  if (!body || !state.currentChannelId || !state.currentThreadRootId) {
+    return;
+  }
+  try {
+    await api(`/channels/${state.currentChannelId}/messages`, {
+      method: "POST",
+      json: { body, parent_id: state.currentThreadRootId },
+    });
+    el("thread-msg-input").value = "";
+  } catch (e) {
+    alert(e.message);
+  }
 }
 
 function escapeHtml(s) {
@@ -560,8 +789,9 @@ function appendMessage(p, dedupe) {
     return;
   }
   state.messageIds.add(p.id);
+  cacheMessage(p);
   const inner = el("messages-inner");
-  inner.appendChild(renderMessageRow(p));
+  inner.appendChild(renderMessageRow(p, { showReplyActions: true }));
   inner.scrollTop = inner.scrollHeight;
 }
 
@@ -571,7 +801,8 @@ function prependMessages(items) {
   items.forEach((p) => {
     if (!state.messageIds.has(p.id)) {
       state.messageIds.add(p.id);
-      frag.appendChild(renderMessageRow(p));
+      cacheMessage(p);
+      frag.appendChild(renderMessageRow(p, { showReplyActions: true }));
     }
   });
   const anchor = inner.firstChild;
@@ -760,6 +991,7 @@ async function refreshChannels() {
 }
 
 async function selectChannel(id) {
+  closeThread();
   const prev = state.currentChannelId;
   if (state.ws && state.ws.readyState === WebSocket.OPEN && prev && prev !== id) {
     state.ws.send(
@@ -768,6 +1000,7 @@ async function selectChannel(id) {
   }
   state.currentChannelId = id;
   state.messageIds.clear();
+  state.messageCache.clear();
   el("messages-inner").innerHTML = "";
   el("msg-input").disabled = false;
   el("send-btn").disabled = false;
@@ -791,7 +1024,7 @@ async function loadMessagesFirstPage() {
   if (!state.currentChannelId) {
     return;
   }
-  const q = new URLSearchParams({ limit: "50" });
+  const q = new URLSearchParams({ limit: "50", root_only: "true" });
   const page = await api(
     `/channels/${state.currentChannelId}/messages?${q}`
   );
@@ -808,6 +1041,7 @@ async function loadOlder() {
   const q = new URLSearchParams({
     limit: "50",
     before_id: state.nextBeforeId,
+    root_only: "true",
   });
   const page = await api(
     `/channels/${state.currentChannelId}/messages?${q}`
@@ -1053,6 +1287,15 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
   el("load-older").onclick = loadOlder;
+  el("thread-close").onclick = closeThread;
+  el("thread-send-btn").onclick = sendThreadMessage;
+  el("thread-load-older").onclick = loadThreadOlder;
+  el("thread-msg-input")?.addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter" && !ev.shiftKey) {
+      ev.preventDefault();
+      sendThreadMessage();
+    }
+  });
 
   document.querySelectorAll(".nav-item").forEach((n) => {
     n.onclick = () => {

@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.auth_deps import hash_password
 from app.config import settings
-from app.db import Base, SessionLocal, engine
+from app.db import Base, SessionLocal, engine, run_schema_migrations
 from app.models import User
 from app.routes import api_v1, ui
 
@@ -15,6 +15,7 @@ from app.routes import api_v1, ui
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    run_schema_migrations()
     db = SessionLocal()
     try:
         n = db.query(User).count()

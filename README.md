@@ -155,7 +155,7 @@ The sample `Deployment` sets security contexts compatible with **Pod Security** 
 | Channels | `GET/POST /api/v1/channels`, `PATCH/DELETE /api/v1/channels/{channel_id_or_name}` |
 | Presence | `GET /api/v1/channels/{channel_id_or_name}/presence` — users currently connected via WebSocket (must be a channel member) |
 | Members (admin) | `GET /api/v1/channels/{channel_id_or_name}/members`, `POST …/members`, `DELETE …/members/{user_id}` |
-| Messages | `GET/POST /api/v1/channels/{channel_id_or_name}/messages`, `DELETE …/messages/{message_id}` (admin) |
+| Messages | `GET/POST /api/v1/channels/{channel_id_or_name}/messages` (`root_only`, `before_id`, `limit`; POST optional `parent_id` for thread replies), `GET …/messages/{message_id}/replies`, `DELETE …/messages/{message_id}` (admin) |
 | Webhook | `POST /api/v1/webhooks/channels/{channel_id_or_name}/messages` |
 
 **Channel in the path:** `{channel_id_or_name}` is either the channel’s **UUID** or its exact **name** (e.g. `operations`). If the name contains reserved URL characters, percent-encode the path segment (e.g. `curl` and browsers do this for spaces; for `#` use `%23`).

@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Demo Chat</title>
-    <link rel="stylesheet" href="/theme.css?v=layout6" />
+    <link rel="stylesheet" href="/theme.css?v=layout7" />
   </head>
   <body>
     <div id="login-view" class="panel login-card">
@@ -106,6 +106,23 @@
                   <button type="button" class="btn btn-ghost" id="load-older" disabled>Load older</button>
                 </div>
               </div>
+              <aside id="thread-panel" class="thread-panel hidden" aria-label="Thread">
+                <div class="thread-panel-header">
+                  <button type="button" class="btn btn-ghost" id="thread-close" aria-label="Close thread">Close</button>
+                  <span class="thread-panel-title">Thread</span>
+                </div>
+                <div id="thread-parent" class="thread-parent"></div>
+                <div class="thread-messages-wrap">
+                  <div class="messages-inner" id="thread-messages-inner"></div>
+                </div>
+                <div class="composer">
+                  <textarea id="thread-msg-input" placeholder="Reply in thread…" disabled></textarea>
+                  <button type="button" class="btn btn-primary" id="thread-send-btn" disabled>Send</button>
+                </div>
+                <div class="thread-panel-footer">
+                  <button type="button" class="btn btn-ghost" id="thread-load-older" disabled>Load older</button>
+                </div>
+              </aside>
             </div>
           </section>
 
@@ -302,6 +319,6 @@
       </div>
     </dialog>
 
-    <script src="/app.js?v=layout5"></script>
+    <script src="/app.js?v=layout7"></script>
   </body>
 </html>

@@ -76,6 +76,7 @@ class MembershipCreate(BaseModel):
 # Message
 class MessageCreate(BaseModel):
     body: str = Field(min_length=1, max_length=65535)
+    parent_id: uuid.UUID | None = None
 
 
 class MessageOut(BaseModel):
@@ -85,6 +86,8 @@ class MessageOut(BaseModel):
     username: str
     body: str
     created_at: datetime
+    parent_id: uuid.UUID | None = None
+    reply_count: int = 0
 
 
 class MessagePage(BaseModel):

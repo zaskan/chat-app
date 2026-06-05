@@ -99,6 +99,12 @@ class Message(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, index=True
     )
+    parent_id = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("messages.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
 
     channel: Mapped["Channel"] = relationship(back_populates="messages")
     user: Mapped["User"] = relationship(back_populates="messages")

@@ -12,7 +12,7 @@ from app.channel_ref import parse_channel_ref
 from app.db import SessionLocal
 from app.services.membership import is_channel_member
 from app.models import Message, User
-from app import schemas
+from app.services.message_out import message_to_out, validate_reply_parent
 
 router = APIRouter(tags=["websocket"])
 
@@ -129,21 +129,8 @@ def _agent_dbg(payload: dict[str, Any]) -> None:
         pass
 
 
-def _message_to_out(db: Session, msg: Message) -> schemas.MessageOut:
-    author = db.query(User).filter(User.id == msg.user_id).first()
-    username = author.username if author else "?"
-    return schemas.MessageOut(
-        id=msg.id,
-        channel_id=msg.channel_id,
-        user_id=msg.user_id,
-        username=username,
-        body=msg.body,
-        created_at=msg.created_at,
-    )
-
-
 def broadcast_message_created(db: Session, msg: Message) -> None:
-    out = _message_to_out(db, msg)
+    out = message_to_out(db, msg)
     payload = {
         "type": "message_created",
         "payload": out.model_dump(mode="json"),
@@ -151,6 +138,22 @@ def broadcast_message_created(db: Session, msg: Message) -> None:
 
     async def _send() -> None:
         await manager.broadcast(msg.channel_id, payload)
+        if msg.parent_id is not None:
+            from sqlalchemy import func
+
+            reply_count = (
+                db.query(func.count(Message.id))
+                .filter(Message.parent_id == msg.parent_id)
+                .scalar()
+                or 0
+            )
+            thread_payload = {
+                "type": "thread_updated",
+                "channel_id": str(msg.channel_id),
+                "root_id": str(msg.parent_id),
+                "reply_count": reply_count,
+            }
+            await manager.broadcast(msg.channel_id, thread_payload)
 
     try:
         loop = asyncio.get_running_loop()
@@ -304,6 +307,7 @@ async def websocket_endpoint(
                 elif typ == "send_message":
                     cid_raw = data.get("channel_id") or data.get("channel_name")
                     body = data.get("body")
+                    parent_raw = data.get("parent_id")
                     if cid_raw is None:
                         await websocket.send_text(
                             json.dumps(
@@ -350,7 +354,40 @@ async def websocket_endpoint(
                             )
                         )
                         continue
-                    msg = Message(channel_id=cid, user_id=user.id, body=body.strip())
+                    parent_id: uuid.UUID | None = None
+                    if parent_raw is not None:
+                        try:
+                            parent_id = uuid.UUID(str(parent_raw))
+                        except ValueError:
+                            await websocket.send_text(
+                                json.dumps(
+                                    {
+                                        "type": "error",
+                                        "code": "bad_parent",
+                                        "message": "parent_id must be a valid UUID",
+                                    }
+                                )
+                            )
+                            continue
+                        try:
+                            validate_reply_parent(db, cid, parent_id)
+                        except ValueError as exc:
+                            await websocket.send_text(
+                                json.dumps(
+                                    {
+                                        "type": "error",
+                                        "code": "bad_parent",
+                                        "message": str(exc),
+                                    }
+                                )
+                            )
+                            continue
+                    msg = Message(
+                        channel_id=cid,
+                        user_id=user.id,
+                        body=body.strip(),
+                        parent_id=parent_id,
+                    )
                     db.add(msg)
                     db.commit()
                     db.refresh(msg)
