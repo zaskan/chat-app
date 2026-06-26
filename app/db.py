@@ -30,6 +30,16 @@ def get_db() -> Generator[Session, None, None]:
 def run_schema_migrations() -> None:
     """Apply lightweight column additions for existing DBs (create_all is not enough)."""
     insp = inspect(engine)
+    if insp.has_table("channels"):
+        ch_cols = {c["name"] for c in insp.get_columns("channels")}
+        if "webhook_payload_format" not in ch_cols:
+            with engine.begin() as conn:
+                conn.execute(
+                    text(
+                        "ALTER TABLE channels ADD COLUMN webhook_payload_format "
+                        "VARCHAR(16) NOT NULL DEFAULT 'body'"
+                    )
+                )
     if not insp.has_table("messages"):
         return
     cols = {c["name"] for c in insp.get_columns("messages")}

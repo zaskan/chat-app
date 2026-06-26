@@ -321,6 +321,13 @@
           <label>Anonymous posts as user</label>
           <select id="dlg-ch-user"></select>
         </div>
+        <div class="field">
+          <label>Webhook payload format</label>
+          <select id="dlg-ch-payload-format">
+            <option value="body">Plain body ({"body":"..."})</option>
+            <option value="itsm">ITSM events (incident.created, request.submitted)</option>
+          </select>
+        </div>
         <p style="font-size: 0.75rem; color: var(--muted)" class="dlg-ch-hook-line">
           Webhook URL (authenticated): <code id="dlg-ch-hook-url" class="dlg-ch-hook-url"></code>
         </p>

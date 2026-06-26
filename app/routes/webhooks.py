@@ -1,6 +1,7 @@
 import uuid
+from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from sqlalchemy.orm import Session
 
@@ -9,6 +10,7 @@ from app.auth_deps import authenticate_user, decode_token, get_user_by_id
 from app.channel_ref import get_channel_by_ref
 from app.db import get_db
 from app.models import Channel, Message, User
+from app.services.itsm_webhook import resolve_webhook_message
 from app.services.membership import is_channel_member
 from app.services.message_out import message_to_out, validate_reply_parent
 from app.websocket import broadcast_message_created
@@ -99,19 +101,43 @@ def _post_webhook_message(
     return message_to_out(db, msg)
 
 
+async def _read_webhook_payload(request: Request) -> dict[str, Any]:
+    try:
+        raw = await request.json()
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid JSON body",
+        ) from exc
+    if not isinstance(raw, dict):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Webhook body must be a JSON object",
+        )
+    return raw
+
+
 @router.post(
     "/channels/{channel_id_or_name}/messages",
     response_model=schemas.MessageOut,
+    responses={
+        204: {
+            "description": "ITSM event recognized but unsupported; no message created"
+        },
+    },
     status_code=status.HTTP_201_CREATED,
 )
-def webhook_post_message(
-    body: schemas.MessageCreate,
+async def webhook_post_message(
     request: Request,
     db: Session = Depends(get_db),
     basic_creds: HTTPBasicCredentials | None = Depends(basic_scheme),
     ch: Channel = Depends(get_channel_by_ref),
-) -> schemas.MessageOut:
+) -> schemas.MessageOut | Response:
     channel_id = ch.id
+    raw = await _read_webhook_payload(request)
+    body = resolve_webhook_message(ch.webhook_payload_format, raw)
+    if body is None:
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
 
     user = _resolve_webhook_user(request, db, basic_creds)
     if user is not None:

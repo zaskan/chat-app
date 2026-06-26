@@ -1311,6 +1311,7 @@ async function openChannelDlg(channelId) {
   el("dlg-ch-user").value = c.anonymous_webhook_user_id
     ? String(c.anonymous_webhook_user_id)
     : "";
+  el("dlg-ch-payload-format").value = c.webhook_payload_format || "body";
   el("dlg-ch-hook-url").textContent = `${window.location.origin}${API}/webhooks/channels/${c.id}/messages`;
   el("dlg-channel").showModal();
 }
@@ -1557,6 +1558,7 @@ document.addEventListener("DOMContentLoaded", () => {
       name,
       allow_anonymous_webhook: allow,
       anonymous_webhook_user_id: allow && uid ? uid : null,
+      webhook_payload_format: el("dlg-ch-payload-format").value || "body",
     };
     try {
       await api(`/channels/${id}`, { method: "PATCH", json: body });

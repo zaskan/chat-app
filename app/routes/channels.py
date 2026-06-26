@@ -66,6 +66,7 @@ def create_channel(
         name=body.name,
         allow_anonymous_webhook=body.allow_anonymous_webhook,
         anonymous_webhook_user_id=body.anonymous_webhook_user_id,
+        webhook_payload_format=body.webhook_payload_format,
     )
     db.add(ch)
     db.commit()
@@ -93,6 +94,8 @@ def update_channel(
         ch.allow_anonymous_webhook = body.allow_anonymous_webhook
     if body.anonymous_webhook_user_id is not None:
         ch.anonymous_webhook_user_id = body.anonymous_webhook_user_id
+    if body.webhook_payload_format is not None:
+        ch.webhook_payload_format = body.webhook_payload_format
     if ch.allow_anonymous_webhook:
         if not ch.anonymous_webhook_user_id:
             raise HTTPException(
