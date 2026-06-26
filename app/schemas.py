@@ -47,16 +47,21 @@ class PasswordUpdate(BaseModel):
 
 
 # Channel
+WebhookPayloadFormat = Literal["body", "itsm"]
+
+
 class ChannelCreate(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     allow_anonymous_webhook: bool = False
     anonymous_webhook_user_id: uuid.UUID | None = None
+    webhook_payload_format: WebhookPayloadFormat = "body"
 
 
 class ChannelUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=255)
     allow_anonymous_webhook: bool | None = None
     anonymous_webhook_user_id: uuid.UUID | None = None
+    webhook_payload_format: WebhookPayloadFormat | None = None
 
 
 class ChannelOut(BaseModel):
@@ -65,6 +70,7 @@ class ChannelOut(BaseModel):
     created_at: datetime
     allow_anonymous_webhook: bool
     anonymous_webhook_user_id: uuid.UUID | None
+    webhook_payload_format: WebhookPayloadFormat = "body"
 
     model_config = {"from_attributes": True}
 

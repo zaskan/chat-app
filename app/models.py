@@ -43,6 +43,7 @@ class Channel(Base):
     anonymous_webhook_user_id = mapped_column(
         Uuid(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
+    webhook_payload_format: Mapped[str] = mapped_column(String(16), default="body")
 
     memberships: Mapped[list["ChannelMembership"]] = relationship(
         back_populates="channel", cascade="all, delete-orphan"

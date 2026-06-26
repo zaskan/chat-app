@@ -15,6 +15,7 @@ Repository layout follows the same conventions as [itsm-app](https://github.com/
 - **Messages**: paginated history `GET /api/v1/channels/{channel_id}/messages?limit=&before_id=` with `has_more` and `next_before_id` for bot pagination.
 - **WebSocket** (`/api/v1/ws?token=<jwt>`): JSON commands `subscribe`, `send_message`, `unsubscribe`; server events `message_created`, `subscribed`, `error`.
 - **Inbound webhooks**: `POST /api/v1/webhooks/channels/{channel_id}/messages` with JSON `{"body":"..."}` and optional `"parent_id":"<root-message-uuid>"` for thread replies.
+  - **Payload format** (per channel, `webhook_payload_format`): `body` (default) requires `{"body":"..."}`; `itsm` also accepts [itsm-app](https://github.com/zaskan/itsm-app) outbound events `incident.created` and `request.submitted` and maps them to channel messages (plain `body` still accepted when present).
   - **Authenticated**: same JWT as the API, or **HTTP Basic** (username/password).
   - **Anonymous** (demo only): per-channel `allow_anonymous_webhook` plus `anonymous_webhook_user_id` (member whose name appears on posts). **Anyone who can reach the URL can post** — use only on isolated networks.
 - **AI / bot clients**: authenticate like any user; use REST for history and channel list; WebSocket for live traffic.
@@ -266,7 +267,14 @@ curl -sS -X POST "${BASE}/api/v1/webhooks/channels/${CHANNEL_ID}/messages" \
 curl -sS -X POST "${BASE}/api/v1/webhooks/channels/${CHANNEL_ID}/messages" \
   -H "Content-Type: application/json" \
   -d '{"body":"Anonymous post"}'
+
+# ITSM outbound event (channel webhook_payload_format must be "itsm")
+curl -sS -X POST "${BASE}/api/v1/webhooks/channels/operations/messages" \
+  -H "Content-Type: application/json" \
+  -d '{"event":"incident.created","incident":{"public_id":"INC-1","title":"Probe","severity":"low"}}'
 ```
+
+Set `webhook_payload_format` to `itsm` when creating or patching a channel (admin API or channel settings UI). Unsupported ITSM event types return HTTP 204 with no message created.
 
 ## Limits
 
